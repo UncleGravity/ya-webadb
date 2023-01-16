@@ -76,6 +76,11 @@ const ROUTES = [
         name: "Bug Report",
     },
     {
+        url: "/audio",
+        icon: Icons.PhoneSpeaker,
+        name: "Audio Forward",
+    },
+    {
         url: "/packet-log",
         icon: Icons.TextGrammarError,
         name: "Packet Log",
