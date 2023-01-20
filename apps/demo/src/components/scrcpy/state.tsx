@@ -1,4 +1,6 @@
 import { ADB_SYNC_MAX_PACKET_SIZE } from "@yume-chan/adb";
+import { AdbWebUsbBackend } from "@yume-chan/adb-backend-webusb";
+import { AoaHidDevice, HidMouse } from "@yume-chan/aoa";
 import {
     AdbScrcpyClient,
     AdbScrcpyOptions1_22,
@@ -52,6 +54,7 @@ export class ScrcpyPageState {
 
     client: AdbScrcpyClient | undefined = undefined;
     hoverHelper: ScrcpyHoverHelper | undefined = undefined;
+    mouse: AoaHidDevice | undefined = undefined;
 
     async pushServer() {
         const serverBuffer = await fetchServer();
@@ -110,7 +113,7 @@ export class ScrcpyPageState {
         }
 
         try {
-            if (!SETTING_STATE.settings.decoder) {
+            if (!SETTING_STATE.clientSettings.decoder) {
                 throw new Error("No available decoder");
             }
 
@@ -192,7 +195,7 @@ export class ScrcpyPageState {
 
             const decoderDefinition =
                 SETTING_STATE.decoders.find(
-                    (x) => x.key === SETTING_STATE.settings.decoder
+                    (x) => x.key === SETTING_STATE.clientSettings.decoder
                 ) ?? SETTING_STATE.decoders[0];
             const decoder = new decoderDefinition.Constructor();
 
@@ -226,7 +229,8 @@ export class ScrcpyPageState {
                     ...SETTING_STATE.settings,
                     sendDeviceMeta: false,
                     sendDummyByte: false,
-                    codecOptions: !SETTING_STATE.settings.ignoreDecoderCodecArgs
+                    codecOptions: !SETTING_STATE.clientSettings
+                        .ignoreDecoderCodecArgs
                         ? new CodecOptions({
                               profile: decoder.maxProfile,
                               level: decoder.maxLevel,
@@ -303,9 +307,20 @@ export class ScrcpyPageState {
                 )
                 .catch(() => {});
 
-            if (SETTING_STATE.settings.turnScreenOff) {
+            if (SETTING_STATE.clientSettings.turnScreenOff) {
                 await client.controlMessageSerializer!.setScreenPowerMode(
                     AndroidScreenPowerMode.Off
+                );
+            }
+
+            if (
+                SETTING_STATE.clientSettings.hid &&
+                GLOBAL_STATE.backend instanceof AdbWebUsbBackend
+            ) {
+                this.mouse = await AoaHidDevice.register(
+                    GLOBAL_STATE.backend.device,
+                    0,
+                    HidMouse.descriptor
                 );
             }
 
@@ -341,6 +356,11 @@ export class ScrcpyPageState {
 
         this.fps = "0";
         clearTimeout(this.fpsCounterIntervalId);
+
+        document.exitFullscreen().catch(() => {
+            /* ignore */
+        });
+        document.exitPointerLock();
 
         this.client = undefined;
         this.running = false;

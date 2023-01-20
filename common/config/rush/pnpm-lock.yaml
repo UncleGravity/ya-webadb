@@ -16,6 +16,7 @@ importers:
       '@mdx-js/loader': ^2.2.1
       '@mdx-js/react': ^2.2.1
       '@next/mdx': ^13.1.1
+      '@types/node': ^18.11.18
       '@types/react': 18.0.26
       '@yume-chan/adb': workspace:^0.0.17
       '@yume-chan/adb-backend-direct-sockets': workspace:^0.0.9
@@ -84,6 +85,7 @@ importers:
       '@mdx-js/loader': 2.2.1
       '@mdx-js/react': 2.2.1_react@18.2.0
       '@next/mdx': 13.1.1_vvg67iglxhejglpl7nsv3pjzui
+      '@types/node': 18.11.18
       '@types/react': 18.0.26
       eslint: 8.31.0
       eslint-config-next: 13.1.1_iukboom6ndih5an6iafl45j2fe

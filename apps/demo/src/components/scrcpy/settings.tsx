@@ -39,30 +39,19 @@ import { GLOBAL_STATE } from "../../state";
 import { Icons } from "../../utils";
 import { STATE } from "./state";
 
-type RequiredScrcpyOptions = Pick<
-    ScrcpyOptionsInit1_24,
-    "crop" | "maxSize" | "bitRate" | "powerOn"
->;
-type OptionalScrcpyOptions = Partial<
-    Pick<
-        ScrcpyOptionsInit1_24,
-        | "displayId"
-        | "lockVideoOrientation"
-        | "encoderName"
-        | "tunnelForward"
-        | "stayAwake"
-        | "powerOffOnClose"
-    >
->;
+export type Settings = Partial<ScrcpyOptionsInit1_24>;
 
-export interface Settings extends RequiredScrcpyOptions, OptionalScrcpyOptions {
+export interface ClientSettings {
     turnScreenOff?: boolean;
     decoder?: string;
     ignoreDecoderCodecArgs?: boolean;
+    hid?: boolean;
 }
 
+export type SettingKeys = keyof (Settings & ClientSettings);
+
 export interface SettingDefinitionBase {
-    key: keyof Settings;
+    key: SettingKeys;
     type: string;
     label: string;
     labelExtra?: JSX.Element;
@@ -100,7 +89,7 @@ export type SettingDefinition =
 interface SettingItemProps {
     definition: SettingDefinition;
     settings: any;
-    onChange: (key: keyof Settings, value: any) => void;
+    onChange: (key: SettingKeys, value: any) => void;
 }
 
 const useClasses = makeStyles({
@@ -220,10 +209,15 @@ export const SETTING_STATE = makeAutoObservable(
             crop: "",
             powerOn: true,
         } as Settings,
+
+        clientSettings: {
+            hid: true,
+        } as ClientSettings,
     },
     {
         decoders: observable.shallow,
         settings: observable.deep,
+        clientSettings: observable.deep,
     }
 );
 
@@ -240,7 +234,7 @@ autorun(() => {
 });
 
 autorun(() => {
-    SETTING_STATE.settings.decoder = SETTING_STATE.decoders[0].key;
+    SETTING_STATE.clientSettings.decoder = SETTING_STATE.decoders[0].key;
 });
 
 export const SETTING_DEFINITIONS = computed(() => {

@@ -1,4 +1,5 @@
 import { makeStyles } from "@griffel/react";
+import { HidMouse } from "@yume-chan/aoa";
 import {
     AndroidKeyCode,
     AndroidKeyEventAction,
@@ -29,16 +30,33 @@ function handleWheel(e: WheelEvent) {
     e.preventDefault();
     e.stopPropagation();
 
-    const { x, y } = STATE.clientPositionToDevicePosition(e.clientX, e.clientY);
-    STATE.client!.controlMessageSerializer!.injectScroll({
-        screenWidth: STATE.client!.screenWidth!,
-        screenHeight: STATE.client!.screenHeight!,
-        pointerX: x,
-        pointerY: y,
-        scrollX: -e.deltaX / 100,
-        scrollY: -e.deltaY / 100,
-        buttons: 0,
-    });
+    if (STATE.mouse) {
+        if (document.pointerLockElement) {
+            STATE.mouse.sendEvent(
+                HidMouse.serializeReport(
+                    0,
+                    0,
+                    e.buttons,
+                    -e.deltaX / 100,
+                    -e.deltaY / 100
+                )
+            );
+        }
+    } else {
+        const { x, y } = STATE.clientPositionToDevicePosition(
+            e.clientX,
+            e.clientY
+        );
+        STATE.client!.controlMessageSerializer!.injectScroll({
+            screenWidth: STATE.client!.screenWidth!,
+            screenHeight: STATE.client!.screenHeight!,
+            pointerX: x,
+            pointerY: y,
+            scrollX: -e.deltaX / 100,
+            scrollY: -e.deltaY / 100,
+            buttons: 0,
+        });
+    }
 }
 
 function injectTouch(
@@ -80,8 +98,14 @@ function handlePointerDown(e: PointerEvent<HTMLDivElement>) {
     STATE.rendererContainer!.focus();
     e.preventDefault();
     e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    injectTouch(AndroidMotionEventAction.Down, e);
+
+    if (STATE.mouse && e.pointerType === "mouse") {
+        e.currentTarget.requestPointerLock();
+        STATE.mouse.sendEvent(HidMouse.serializeReport(0, 0, e.buttons, 0, 0));
+    } else {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        injectTouch(AndroidMotionEventAction.Down, e);
+    }
 }
 
 function handlePointerMove(e: PointerEvent<HTMLDivElement>) {
@@ -91,18 +115,37 @@ function handlePointerMove(e: PointerEvent<HTMLDivElement>) {
 
     e.preventDefault();
     e.stopPropagation();
-    injectTouch(
-        e.buttons === 0
-            ? AndroidMotionEventAction.HoverMove
-            : AndroidMotionEventAction.Move,
-        e
-    );
+
+    if (STATE.mouse && e.pointerType === "mouse") {
+        if (document.pointerLockElement) {
+            STATE.mouse.sendEvent(
+                HidMouse.serializeReport(
+                    e.movementX,
+                    e.movementY,
+                    e.buttons,
+                    0,
+                    0
+                )
+            );
+        }
+    } else {
+        injectTouch(
+            e.buttons === 0
+                ? AndroidMotionEventAction.HoverMove
+                : AndroidMotionEventAction.Move,
+            e
+        );
+    }
 }
 
 function handlePointerUp(e: PointerEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-    injectTouch(AndroidMotionEventAction.Up, e);
+    if (STATE.mouse && e.pointerType === "mouse") {
+        STATE.mouse.sendEvent(HidMouse.serializeReport(0, 0, e.buttons, 0, 0));
+    } else {
+        injectTouch(AndroidMotionEventAction.Up, e);
+    }
 }
 
 function handlePointerLeave(e: PointerEvent<HTMLDivElement>) {
@@ -130,15 +173,23 @@ const KEY_MAP = {
     ArrowDown: AndroidKeyCode.DPadDown,
     ArrowLeft: AndroidKeyCode.DPadLeft,
     ArrowRight: AndroidKeyCode.DPadRight,
+    ControlLeft: AndroidKeyCode.CtrlLeft,
+    ControlRight: AndroidKeyCode.CtrlRight,
+    ShiftLeft: AndroidKeyCode.ShiftLeft,
+    ShiftRight: AndroidKeyCode.ShiftRight,
+    AltLeft: AndroidKeyCode.AltLeft,
+    AltRight: AndroidKeyCode.AltRight,
 } as Record<string, AndroidKeyCode | undefined>;
 
-async function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (!STATE.client) {
+async function handleKeyEvent(e: KeyboardEvent<HTMLDivElement>) {
+    if (!STATE.client || e.repeat) {
         return;
     }
 
-    const { key, code } = e;
-    if (key.match(/^[!-`{-~]$/i)) {
+    const { type, key, code } = e;
+    if (type === "keydown" && key.match(/^[!-`{-~]$/i)) {
+        e.preventDefault();
+        e.stopPropagation();
         STATE.client!.controlMessageSerializer!.injectText(key);
         return;
     }
@@ -151,13 +202,10 @@ async function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
         e.stopPropagation();
 
         STATE.client!.controlMessageSerializer!.injectKeyCode({
-            action: AndroidKeyEventAction.Down,
-            keyCode,
-            metaState: 0,
-            repeat: 0,
-        });
-        STATE.client!.controlMessageSerializer!.injectKeyCode({
-            action: AndroidKeyEventAction.Up,
+            action:
+                type === "keydown"
+                    ? AndroidKeyEventAction.Down
+                    : AndroidKeyEventAction.Up,
             keyCode,
             metaState: 0,
             repeat: 0,
@@ -205,7 +253,8 @@ export function VideoContainer() {
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onPointerLeave={handlePointerLeave}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleKeyEvent}
+            onKeyUp={handleKeyEvent}
             onContextMenu={handleContextMenu}
         />
     );

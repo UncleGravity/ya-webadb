@@ -72,6 +72,7 @@ export class AoaHidDevice {
     ) {
         await aoaRegisterHid(device, accessoryId, reportDescriptor.length);
         await aoaSetHidReportDescriptor(device, accessoryId, reportDescriptor);
+        return new AoaHidDevice(device, accessoryId);
     }
 
     private _device: USBDevice;
