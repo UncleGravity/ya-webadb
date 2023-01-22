@@ -4,10 +4,21 @@
 
   // These tasks can be run from CodeSandbox. Running one will open a log in the app.
   "tasks": {
-    ";": {
-      "name": ";",
-      "command": ";",
-      "runAtStart": true
+    "rush install": {
+      "name": "rush install",
+      "command": "rush install"
+    },
+    "rush build": {
+      "name": "rush build",
+      "command": "rush build"
+    },
+    "rush build:watch": {
+      "name": "rush build:watch",
+      "command": "rush build:watch"
+    },
+    "npm run dev": {
+      "name": "cd apps/demo;npm run dev",
+      "command": "cd apps/demo;npm run dev"
     }
   }
 }
